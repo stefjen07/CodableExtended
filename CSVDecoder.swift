@@ -20,13 +20,13 @@ class CSVDecoder: TopLevelDecoder {
             throw CSVDecoder.Error.wrongInputFormat
         }
         
-        let parser = CSVParser(raw: raw, codingPath: [])
+        let parser = _CSVDecoder(raw: raw, codingPath: [])
         let container = try parser.singleValueContainer()
         return try container.decode(type)
     }
 }
 
-class CSVParser: Decoder {
+class _CSVDecoder: Decoder {
     var raw: String
     var codingPath: [CodingKey]
     var userInfo: [CodingUserInfoKey : Any]
@@ -114,7 +114,13 @@ class CSVParser: Decoder {
         }
         
         func decode(_ type: String.Type) throws -> String {
-            return raw
+            var value = raw
+            if value.first == "\"" && value.last == "\"" && value.count > 1 {
+                value.removeFirst()
+                value.removeLast()
+                value = value.replacingOccurrences(of: "\"\"", with: "\"")
+            }
+            return value
         }
         
         func decode(_ type: Double.Type) throws -> Double {
@@ -214,23 +220,36 @@ class CSVParser: Decoder {
         }
         
         func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
-            return try T.init(from: CSVParser(raw: raw, codingPath: codingPath, keys: keys))
+            return try T.init(from: _CSVDecoder(raw: raw, codingPath: codingPath, keys: keys))
         }
     }
     
-    class KeyedContainer<Key> where Key: CodingKey {
+    class KeyedContainer<Key> where Key: CodingKey {        
         var raws: [String]
         var codingPath: [CodingKey]
         var allKeys: [Key]
         
         init(raw: String, codingPath: [CodingKey], allKeys: [Key]) {
-            self.raws = CSVParser.separated(raw: raw, separator: ",")
+            self.raws = _CSVDecoder.separated(raw: raw, separator: ",")
             self.codingPath = codingPath
             self.allKeys = allKeys
         }
     }
     
     class UnkeyedContainer: UnkeyedDecodingContainer {
+        struct ContainerKey: CodingKey {
+            var stringValue: String
+            init?(stringValue: String) {
+                return nil
+            }
+            
+            var intValue: Int?
+            init(intValue: Int) {
+                self.intValue = intValue
+                self.stringValue = String(intValue)
+            }
+        }
+        
         var raws: [String]
         
         var keysRow: [String]
@@ -246,8 +265,8 @@ class CSVParser: Decoder {
         
         init(raw: String, codingPath: [CodingKey]) {
             self.codingPath = codingPath
-            self.raws = CSVParser.separated(raw: raw, separator: ",")
-            self.keysRow = CSVParser.separated(raw: raws[0], separator: ",")
+            self.raws = _CSVDecoder.separated(raw: raw, separator: ",")
+            self.keysRow = _CSVDecoder.separated(raw: raws[0], separator: ",")
         }
         
         func decodeNil() throws -> Bool {
@@ -255,7 +274,7 @@ class CSVParser: Decoder {
         }
         
         func decode<T>(_ type: [T].Type) throws -> [T] where T: Decodable {
-            let value = try [T].init(from: CSVParser(raw: raws[currentIndex], codingPath: codingPath))
+            let value = try [T].init(from: _CSVDecoder(raw: raws[currentIndex], codingPath: codingPath + [ContainerKey(intValue: currentIndex)]))
             currentIndex += 1
             return value
         }
@@ -264,7 +283,7 @@ class CSVParser: Decoder {
             if currentIndex == 0 {
                 currentIndex = 1
             }
-            let value = try T.init(from: CSVParser(raw: raws[currentIndex], codingPath: codingPath, keys: keysRow))
+            let value = try T.init(from: _CSVDecoder(raw: raws[currentIndex], codingPath: codingPath, keys: keysRow))
             currentIndex += 1
             return value
         }
@@ -288,7 +307,7 @@ class CSVParser: Decoder {
         }
         
         func superDecoder() throws -> Decoder {
-            return CSVParser(raw: raws[currentIndex], codingPath: codingPath)
+            return _CSVDecoder(raw: raws[currentIndex], codingPath: codingPath)
         }
     }
     
@@ -319,7 +338,7 @@ class CSVParser: Decoder {
     }
 }
 
-extension CSVParser.KeyedContainer: KeyedDecodingContainerProtocol {
+extension _CSVDecoder.KeyedContainer: KeyedDecodingContainerProtocol {
     func contains(_ key: Key) -> Bool {
         return false
     }
@@ -337,22 +356,22 @@ extension CSVParser.KeyedContainer: KeyedDecodingContainerProtocol {
             throw CSVDecoder.Error.wrongInputFormat
         }
         
-        return try type.init(from: CSVParser(raw: raws[indexOfRaw], codingPath: codingPath))
+        return try type.init(from: _CSVDecoder(raw: raws[indexOfRaw], codingPath: codingPath + [key]))
     }
     
     func nestedContainer<NestedKey>(keyedBy type: NestedKey.Type, forKey key: Key) throws -> KeyedDecodingContainer<NestedKey> where NestedKey : CodingKey {
-        return KeyedDecodingContainer(CSVParser.KeyedContainer<NestedKey>(raw: raws.joined(separator: ","), codingPath: codingPath, allKeys: []))
+        return KeyedDecodingContainer(_CSVDecoder.KeyedContainer<NestedKey>(raw: raws.joined(separator: ","), codingPath: codingPath + [key], allKeys: []))
     }
     
     func nestedUnkeyedContainer(forKey key: Key) throws -> UnkeyedDecodingContainer {
-        return CSVParser.UnkeyedContainer(raw: raws.joined(separator: ","), codingPath: [])
+        return _CSVDecoder.UnkeyedContainer(raw: raws.joined(separator: ","), codingPath: codingPath + [key])
     }
     
     func superDecoder() throws -> Decoder {
-        return CSVParser(raw: raws.joined(separator: ","), codingPath: codingPath)
+        return _CSVDecoder(raw: raws.joined(separator: ","), codingPath: codingPath)
     }
     
     func superDecoder(forKey key: Key) throws -> Decoder {
-        return CSVParser(raw: raws.joined(separator: ","), codingPath: codingPath)
+        return _CSVDecoder(raw: raws.joined(separator: ","), codingPath: codingPath + [key])
     }
 }
