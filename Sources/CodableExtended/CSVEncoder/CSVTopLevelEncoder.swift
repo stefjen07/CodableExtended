@@ -9,7 +9,7 @@ import Foundation
 
 public class CSVEncoder: BaseEncoder<Data> {
     var keys: [String]
-    init(keys: [String]) {
+    public init(keys: [String]) {
         self.keys = keys
     }
     
@@ -17,7 +17,7 @@ public class CSVEncoder: BaseEncoder<Data> {
         case wrongOutput
     }
     
-    override public func encode<T>(_ value: T) throws -> Data where T : Encodable {
+    public override func encode<T>(_ value: T) throws -> Data where T : Encodable {
         let encoder = _CSVEncoder(codingPath: [], level: 0, keys: keys)
         
         var container = encoder.singleValueContainer()

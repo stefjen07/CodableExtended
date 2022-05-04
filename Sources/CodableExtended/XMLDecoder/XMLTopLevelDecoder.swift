@@ -28,7 +28,11 @@ public class XMLDecoder: BaseDecoder<Data> {
         }
     }
     
-    override public func decode<T>(_ type: T.Type, from data: Data) throws -> T where T : Decodable {
+    public override init() {
+        
+    }
+    
+    public override func decode<T>(_ type: T.Type, from data: Data) throws -> T where T : Decodable {
         guard let raw = String(data: data, encoding: .utf8) else {
             throw Error.wrongInputFormat
         }
