@@ -8,14 +8,14 @@
 import Foundation
 import Combine
 
-class BaseDecoder<Input>: TopLevelDecoder {
-    func decode<T>(_ type: T.Type, from: Input) throws -> T where T : Decodable {
+public class BaseDecoder<Input>: TopLevelDecoder {
+    public func decode<T>(_ type: T.Type, from: Input) throws -> T where T : Decodable {
         fatalError("Base decoder is unable to decode")
     }
 }
 
-class BaseEncoder<Output>: TopLevelEncoder {
-    func encode<T>(_ value: T) throws -> Output where T : Encodable {
+public class BaseEncoder<Output>: TopLevelEncoder {
+    public func encode<T>(_ value: T) throws -> Output where T : Encodable {
         fatalError("Base encoder is unable to encode")
     }
 }
