@@ -32,6 +32,10 @@ class _XMLDecoder: Decoder {
             switch character {
             case "<":
                 currentTag = "<"
+			case " ":
+				if currentTag.starts(with: "<") {
+					tagStack.append(currentTag)
+				}
             case ">":
                 if currentTag[currentTag.index(currentTag.startIndex, offsetBy: 1)] == "/" && !tagStack.isEmpty {
                     _ = tagStack.popLast()
@@ -47,7 +51,6 @@ class _XMLDecoder: Decoder {
                     }
                 } else {
                     currentTag += ">"
-                    tagStack.append(currentTag)
                 }
             default:
                 if currentTag.last != ">" && currentTag.first == "<" {
@@ -67,9 +70,14 @@ class _XMLDecoder: Decoder {
                 value.append(character)
             } else if character == "<" && key.isEmpty {
                 key.append("<")
-            } else if !key.isEmpty {
+			} else if !key.isEmpty && key.last != " " {
                 key.append(character)
-            }
+			} else if !key.isEmpty && character == ">" {
+				if key.last == " " {
+					key.removeLast()
+				}
+				key.append(character)
+			}
         }
         
         guard key.count > 2 else {
